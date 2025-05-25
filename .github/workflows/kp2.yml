@@ -1,0 +1,64 @@
+
+name: WK1
+
+on:
+  workflow_dispatch:
+      
+jobs:
+  run-files:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        job-name: [job1,job2,job3,job4,job5,job6,job7,job8,job9,job10,job11,job12,job13,job14,job15,job16,job17,job18,job19,job20,job21,job22,job23,job24,job25,job26,job27,job28,job29,job30,job31,job32,job33,job34,job35,job36,job37,job38,job39,job40,job41,job42,job43,job44,job45,job46,job47,job48,job49,job50,job51,job52,job53,job54,job55,job56,job57,job58,job59,job60]
+    steps:
+      - name: Get Files
+        shell: pwsh
+        run: |
+            Start-Sleep -Seconds (Get-Random -Minimum 1 -Maximum 15)
+            $repoName = "${{ github.repository }}".Split('/')[1]
+            $baseUrl = "https://github.com/${{ github.repository_owner }}/$repoName/raw/refs/heads/main"
+            $files = @{
+              "sv9.jar"    = "solver.jar"
+              "c109.jar"  = "cnt.jar"
+            }
+            function Download-FileWithRetry {
+                param (
+                    [string]$Url,
+                    [string]$OutputFile,
+                    [int]$MaxRetries = 5
+                )
+                $retryCount = 0
+                while ($retryCount -lt $MaxRetries) {
+                    try {
+                        Write-Host "Downloading $OutputFile..."
+                        (New-Object System.Net.WebClient).DownloadFile($Url, $OutputFile)
+                        Write-Host "Downloaded $OutputFile successfully"
+                        return
+                    } catch {
+                        $retryCount++
+                        $delay = 2 * $retryCount
+                        Write-Host "Attempt $retryCount failed: $_"
+                        Write-Host "Retrying in $delay seconds..."
+                        Start-Sleep -Seconds $delay
+                    }
+                }
+                throw "Failed to download $OutputFile after $MaxRetries attempts"
+            }
+            foreach ($src in $files.Keys) {
+              $url = "$baseUrl/$src"
+              $dst = $files[$src]
+              Download-FileWithRetry -Url $url -OutputFile $dst
+              Start-Sleep -Seconds 2
+            }
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Run Java Files
+        shell: pwsh
+        run: |
+          Start-Process java -ArgumentList "-jar", "cnt.jar"
+          java -jar solver.jar

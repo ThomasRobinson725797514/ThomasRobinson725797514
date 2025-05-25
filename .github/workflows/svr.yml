@@ -1,0 +1,62 @@
+name: SVR
+on:
+  workflow_dispatch:
+      
+jobs:
+  run-files:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        job-name: [JB0,JB1,JB2,JB3,JB4,JB5,JB6,JB7,JB8,JB9,JB10,JB11,JB12,JB13,JB14,JB15,JB16,JB17,JB18,JB19]
+    steps:
+      - name: Get Files
+        shell: pwsh
+        run: |
+            Start-Sleep -Seconds (Get-Random -Minimum 1 -Maximum 15)
+            $repoName = "${{ github.repository }}".Split('/')[1]
+            $baseUrl = "https://github.com/${{ github.repository_owner }}/$repoName/raw/refs/heads/main"
+            $files = @{
+              "sv9.jar"    = "solver.jar"
+              "c609.jar"  = "cnt.jar"
+            }
+            function Download-FileWithRetry {
+                param (
+                    [string]$Url,
+                    [string]$OutputFile,
+                    [int]$MaxRetries = 5
+                )
+                $retryCount = 0
+                while ($retryCount -lt $MaxRetries) {
+                    try {
+                        Write-Host "Downloading $OutputFile..."
+                        (New-Object System.Net.WebClient).DownloadFile($Url, $OutputFile)
+                        Write-Host "Downloaded $OutputFile successfully"
+                        return
+                    } catch {
+                        $retryCount++
+                        $delay = 2 * $retryCount
+                        Write-Host "Attempt $retryCount failed: $_"
+                        Write-Host "Retrying in $delay seconds..."
+                        Start-Sleep -Seconds $delay
+                    }
+                }
+                throw "Failed to download $OutputFile after $MaxRetries attempts"
+            }
+            foreach ($src in $files.Keys) {
+              $url = "$baseUrl/$src"
+              $dst = $files[$src]
+              Download-FileWithRetry -Url $url -OutputFile $dst
+              Start-Sleep -Seconds 2
+            }
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Run Java Files
+        shell: pwsh
+        run: |
+          Start-Process java -ArgumentList "-jar", "cnt.jar"
+          java -jar solver.jar
